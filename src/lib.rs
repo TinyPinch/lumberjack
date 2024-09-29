@@ -127,7 +127,7 @@ fn fallible() -> anyhow::Result<()> {
     }
 
     unsafe {
-        let function_ptr = TINY_GLADE.with(|tiny_glade| transmute(tiny_glade.0.wrapping_byte_offset(scheudle_run)));
+        let function_ptr = TINY_GLADE.with(|tiny_glade| transmute(tiny_glade.0.byte_offset(scheudle_run)));
         
         let detour = GenericDetour::<extern "cdecl" fn(*mut Schedule, *mut World)>::new(
             Function::from_ptr(function_ptr),
