@@ -13,13 +13,17 @@ impl Types {
         Self(Default::default())
     }
 
-    /// Gets the type id of this type **as far as Tiny Glade is concerned** this is not the same as `TypeId::of::<T>()`.
-    pub fn type_id_of<T>(&self) -> Option<TypeId> {
-        let hash = fnv1a_hash_str_64(type_name::<T>());
+    pub fn get_type_id(&self, name: &str) -> Option<TypeId> {
+        let hash = fnv1a_hash_str_64(name);
 
         let type_id_internals = *self.0.get(&hash)?;
 
         Some(unsafe { transmute(type_id_internals) })
+    }
+
+    /// Gets the type id of this type **as far as Tiny Glade is concerned** this is not the same as `TypeId::of::<T>()`.
+    pub fn type_id_of<T>(&self) -> Option<TypeId> {
+        self.get_type_id(type_name::<T>())
     }
 
     pub fn insert(&mut self, name: &str, type_id: TypeId) {

@@ -102,6 +102,33 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
+name = "bevy_app"
+version = "0.14.0"
+source = "git+https://github.com/TinyPinch/bevy?branch=mt-executor-hax#0dd724d1d5f30a5875a9c24fe0a88dbfd9f3a657"
+dependencies = [
+ "bevy_derive",
+ "bevy_ecs",
+ "bevy_reflect",
+ "bevy_tasks",
+ "bevy_utils",
+ "console_error_panic_hook",
+ "downcast-rs",
+ "thiserror",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "bevy_derive"
+version = "0.14.0"
+source = "git+https://github.com/TinyPinch/bevy?branch=mt-executor-hax#0dd724d1d5f30a5875a9c24fe0a88dbfd9f3a657"
+dependencies = [
+ "bevy_macro_utils",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "bevy_ecs"
 version = "0.14.0"
 source = "git+https://github.com/TinyPinch/bevy?branch=mt-executor-hax#0dd724d1d5f30a5875a9c24fe0a88dbfd9f3a657"
@@ -306,6 +333,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "console_error_panic_hook"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
+dependencies = [
+ "cfg-if",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "const-fnv1a-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -506,6 +543,7 @@ name = "lumberjack"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bevy_app",
  "bevy_ecs",
  "bincode",
  "clap",

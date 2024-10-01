@@ -9,6 +9,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 bevy_ecs = { git = "https://github.com/TinyPinch/bevy", branch = "mt-executor-hax" }
+bevy_app = { git = "https://github.com/TinyPinch/bevy", branch = "mt-executor-hax" }
 ctor = "0.2.8"
 retour = "0.3.1"
 lumberjack-dump = { path = "lumberjack-dump" }

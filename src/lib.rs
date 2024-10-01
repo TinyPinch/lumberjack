@@ -1,7 +1,8 @@
-use std::{env, fs::File, io::{BufReader, BufWriter}, mem::transmute, net::TcpStream, path::PathBuf, process::exit, thread, time::Duration};
+use std::{any::{type_name, type_name_of_val}, env, fs::File, io::{BufReader, BufWriter}, mem::transmute, net::TcpStream, path::PathBuf, process::exit, thread, time::Duration};
 
 use anyhow::anyhow;
-use bevy_ecs::{schedule::Schedule, world::World};
+use bevy_app::App;
+use bevy_ecs::{schedule::{Schedule, Schedules}, world::World};
 use clap::Parser;
 use lumberjack_dump::{offsets::Offsets, types::Types, Dump};
 use once_cell::unsync::Lazy;
@@ -14,15 +15,34 @@ use tracing::{debug, error, info, Level};
 use windows::{core::s, Win32::{Foundation::HMODULE, System::LibraryLoader::GetModuleHandleA}};
 
 static SCHEDULE_RUN_DETOUR: RwLock<Option<GenericDetour<extern "cdecl" fn(*mut Schedule, *mut World)>>> = RwLock::new(None);
+static BUILD_DETOUR: RwLock<Option<GenericDetour<extern "cdecl" fn(*const (), *mut App)>>> = RwLock::new(None);
 static TYPES: Mutex<Option<Types>> = Mutex::new(None);
 
 const SCHEDULE_RUN: &str = "bevy_ecs::schedule::schedule::Schedule::run";
+const BUILD: &str = "<country_core::systems::main_camera::MainCameraPlugin as bevy_app::plugin::Plugin>::build";
 
 #[cfg(windows)]
 thread_local! {
     pub static TINY_GLADE: Lazy<HMODULE> = Lazy::new(|| unsafe {
         GetModuleHandleA(s!("tiny-glade.exe")).expect("could not get Tiny Glade module handle")
     });
+}
+
+extern "cdecl" fn build(plugin: *const (), app: *mut App) {
+    let app = unsafe { &mut *app };
+
+    BUILD_DETOUR.read().as_ref().unwrap().call(plugin, app);
+
+    // for (info, ptr) in app.world().iter_resources() {
+    //     if info.name() == type_name::<Schedules>() {
+    //         let schedules: &Schedules = unsafe { ptr.deref() };
+
+    //         for (label, schedule) in schedules.iter() {
+    //             let name = type_name_of_val(label);
+    //             info!("{name}");
+    //         }
+    //     }
+    // }
 }
 
 extern "cdecl" fn run_schedule(schedule: *mut Schedule, world: *mut World) {
@@ -45,7 +65,9 @@ extern "cdecl" fn run_schedule(schedule: *mut Schedule, world: *mut World) {
 
 #[derive(Parser)]
 pub struct Arguments {
+    #[arg(default_value = "7")]
     pub delay: f32,
+    #[arg(default_value = "dump.bin")]
     pub path: PathBuf,
 }
 
@@ -57,7 +79,7 @@ fn ctor() {
 
     tracing_subscriber::fmt().with_max_level(Level::DEBUG).with_writer(std::sync::Mutex::new(stream)).init();
 
-    info!("Connect to injector process");
+    info!("Connected to injector process");
 
     thread::spawn(|| {
         if let Err(err) = fallible() {
@@ -119,15 +141,20 @@ fn fallible() -> anyhow::Result<()> {
 
     info!("Found {} offsets", offsets.len());
 
-    let scheudle_run = offsets.get_offset(SCHEDULE_RUN, None)
+    let scheudle_run_offset = offsets.get_offset(SCHEDULE_RUN, None)
         .ok_or_else(|| anyhow!("Could not find offset for: {SCHEDULE_RUN}"))?;
 
-    {
-        TYPES.lock().replace(Types::new());
-    }
+    info!("Schedule Run Offset: {scheudle_run_offset}");
+
+    let build_offset = offsets.get_offset(BUILD, None)
+        .ok_or_else(|| anyhow!("Could not find offset for: {BUILD}"))?;
+
+    info!("Plugin Build Offset: {build_offset}");
+
+    TYPES.lock().replace(Types::new());
 
     unsafe {
-        let function_ptr = TINY_GLADE.with(|tiny_glade| transmute(tiny_glade.0.byte_offset(scheudle_run)));
+        let function_ptr = TINY_GLADE.with(|tiny_glade| transmute(tiny_glade.0.byte_offset(scheudle_run_offset)));
         
         let detour = GenericDetour::<extern "cdecl" fn(*mut Schedule, *mut World)>::new(
             Function::from_ptr(function_ptr),
@@ -137,6 +164,19 @@ fn fallible() -> anyhow::Result<()> {
         detour.enable()?;
 
         SCHEDULE_RUN_DETOUR.write().replace(detour);
+    }
+
+    unsafe {
+        let function_ptr = TINY_GLADE.with(|tiny_glade| transmute(tiny_glade.0.byte_offset(build_offset)));
+        
+        let detour = GenericDetour::<extern "cdecl" fn(*const (), *mut App)>::new(
+            Function::from_ptr(function_ptr),
+            build,
+        )?;
+
+        detour.enable()?;
+
+        BUILD_DETOUR.write().replace(detour);
     }
 
     
